@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>H₂S Sentinel | Exposure Monitoring</title>
+<meta name="description" content="Monitor cumulative H₂S exposure across workers and facility zones."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"/>
+<style>
+:root{
+  --bg:#1a2138; --fg:#f2f4fb; --muted:#aab3cf; --panel:#242c49; --raised:#2c3554;
+  --border:#3c4670; --primary:#7fb4ff; --accent:#a78bfa; --on-primary:#141a2e;
+  --success:#34d399; --warning:#fbbf24; --elevated:#fb923c; --danger:#f87171;
+  --radius:.4rem;
+}
+*{box-sizing:border-box;border-color:var(--border);margin:0}
+body{
+  background:linear-gradient(160deg,#2b3a6b 0%,#1f2547 45%,#231a3f 100%) fixed;
+  background-color:var(--bg); color:var(--fg);
+  font-family:"IBM Plex Sans",sans-serif; min-width:320px; min-height:100vh; overflow-x:hidden;
+}
+.font-display,h1,h2,h3,.btn,.brand strong{font-family:"Barlow Condensed",sans-serif;letter-spacing:.02em}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select{font:inherit;color:var(--fg)}
+.ombre-bar{background:linear-gradient(90deg,var(--primary),var(--accent));color:var(--on-primary)}
+.ombre-panel{background:linear-gradient(135deg,rgba(127,180,255,.14),rgba(167,139,250,.16))}
+.ombre-text{background:linear-gradient(90deg,var(--primary),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.industrial-grid{background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:32px 32px}
+@keyframes pulse{50%{opacity:.45;transform:scale(.92)}}
+@media (prefers-reduced-motion:no-preference){.reader-pulse{animation:pulse 1.8s ease-in-out infinite}}
+
+.container{max-width:1120px;margin:0 auto;padding:1.5rem 1rem 7rem}
+@media(min-width:1024px){.container{max-width:1360px;padding:2rem 2.5rem 4rem}.header-in{max-width:1360px}}
+.wrap{max-width:42rem;margin:0 auto}
+@media(min-width:1024px){.wrap{max-width:56rem}.wrap.lg{max-width:76rem}.wrap.xl{max-width:84rem}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+.section-title{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1rem}
+.section-title h2{font-size:1.1rem;text-transform:uppercase;font-weight:600}
+.back-head{display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);padding-bottom:1rem;margin-bottom:1.5rem}
+.back-head .title{font-size:1.25rem;font-weight:700;text-transform:uppercase;line-height:1}
+.back-head small{font-size:.7rem;color:var(--muted)}
+.icon-btn{display:grid;place-items:center;width:2.75rem;height:2.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--raised)}
+.btn{display:flex;min-height:3rem;align-items:center;justify-content:center;gap:.5rem;border-radius:var(--radius);padding:0 1.25rem;font-size:1rem;font-weight:700;text-transform:uppercase;background:var(--primary);color:var(--on-primary);width:100%}
+.btn:hover{filter:brightness(1.1)}
+.btn.secondary{background:var(--raised);color:var(--fg);border:1px solid var(--border)}
+.data-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;border-bottom:1px solid var(--border);padding:.75rem 0}
+.data-row:last-child{border:none}
+.data-row .l{font-size:.85rem;color:var(--muted)}
+.data-row .v{font-size:.85rem;font-weight:600;text-align:right}
+.dot{display:inline-block;width:.65rem;height:.65rem;border-radius:50%;flex-shrink:0}
+.dot.success{background:var(--success)}.dot.warning{background:var(--warning)}.dot.elevated{background:var(--elevated)}.dot.danger{background:var(--danger)}
+.t-success{color:var(--success)}.t-warning{color:var(--warning)}.t-elevated{color:var(--elevated)}.t-danger{color:var(--danger)}.t-primary{color:var(--primary)}.t-muted{color:var(--muted)}
+.callout{border-left:2px solid;padding:.75rem;font-size:.85rem;margin-top:1.25rem}
+.grid-2{display:grid;gap:1.25rem;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.grid-2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid-2.wide-left{grid-template-columns:minmax(0,1.4fr) minmax(0,.6fr)}.grid-2.wide-right{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)}}
+.grid-2>*{min-width:0}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+@media(min-width:640px){.grid-3{gap:1rem}}
+.grid-4{display:grid;gap:.75rem}
+@media(min-width:640px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.grid-4{grid-template-columns:repeat(4,1fr)}}
+
+/* header */
+header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border);background:rgba(26,33,56,.85);backdrop-filter:blur(8px)}
+.header-in{max-width:1120px;margin:0 auto;height:4rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
+.brand{display:flex;align-items:center;gap:.75rem;text-align:left}
+.brand .logo{display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:var(--radius);font-weight:700}
+.brand strong{display:block;font-size:1.25rem;line-height:1}
+.brand small{font-size:.62rem;text-transform:uppercase;color:var(--muted)}
+.nav{display:none;align-items:center;gap:.25rem}
+.nav button{padding:.5rem 1rem;border-radius:var(--radius);font-size:.85rem;font-weight:500;color:var(--muted)}
+.nav button.active{color:var(--primary);background:linear-gradient(135deg,rgba(127,180,255,.14),rgba(167,139,250,.16))}
+@media(min-width:768px){.nav{display:flex}.menu-btn{display:none!important}}
+.badge-count{position:absolute;top:-.25rem;right:-.25rem;min-width:1.25rem;display:grid;place-items:center;border-radius:999px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;padding:0 .25rem}
+.dropdown{position:absolute;right:0;top:3rem;z-index:50;width:min(22rem,calc(100vw - 2rem));overflow:hidden;border-radius:var(--radius);border:1px solid var(--border);background:var(--panel);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.notice{display:flex;gap:.75rem;padding:.75rem;border-bottom:1px solid var(--border)}
+.notice.read{opacity:.6}
+.notice .body{flex:1;text-align:left}
+.notice .body strong{display:block;font-size:.85rem}
+.notice .body span{display:block;font-size:.75rem;color:var(--muted)}
+.notice .time{font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-top:.25rem;display:block}
+.mobile-menu{border-top:1px solid var(--border);background:var(--panel);padding:.75rem}
+.mobile-menu button{display:flex;width:100%;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:.75rem;font-size:.85rem}
+.mobile-menu button:last-child{border:none}
+/* bottom nav */
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;border-top:1px solid var(--border);background:rgba(36,44,73,.95);backdrop-filter:blur(8px);padding:.5rem .5rem max(.5rem,env(safe-area-inset-bottom))}
+.bottom-nav .in{max-width:28rem;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.bottom-nav button{display:flex;min-height:3.5rem;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;font-size:.62rem;text-transform:uppercase;color:var(--muted)}
+.bottom-nav button.active{color:var(--primary)}
+@media(min-width:768px){.bottom-nav{display:none}}
+
+.stat strong{display:block;font-size:2.5rem;line-height:1}
+.stat span{display:block;margin-top:.5rem;font-size:.62rem;text-transform:uppercase;color:var(--muted)}
+.stat .ic{font-size:1.25rem;margin-bottom:1.25rem;display:block}
+.status-cell{display:flex;align-items:center;justify-content:space-between;border-radius:var(--radius);border:1px solid var(--border);background:var(--raised);padding:.75rem}
+.status-cell strong{font-size:1.5rem}
+.status-cell .lab{display:flex;align-items:center;gap:.5rem;font-size:.75rem}
+.activity-row{display:grid;width:100%;grid-template-columns:1fr 1fr auto auto;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);padding:.75rem 0;text-align:left}
+.activity-row:last-child{border:none}
+.quick{display:flex;align-items:center;gap:.75rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--panel);padding:1rem;text-align:left;font-size:.85rem;font-weight:600}
+.quick:hover{border-color:#7d89b8}
+.scan-frame{position:relative;display:grid;place-items:center;aspect-ratio:1;max-width:22rem;margin:0 auto 1.5rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--panel)}
+.scan-frame .inner{position:absolute;inset:1.5rem;border:1px solid rgba(127,180,255,.5)}
+.scan-frame .hint{position:absolute;bottom:2.25rem;font-size:.7rem;text-transform:uppercase;color:var(--muted)}
+@media(min-width:1024px){.camera-frame{max-height:62vh;margin-bottom:0}}
+.camera-frame{position:relative;aspect-ratio:4/5;overflow:hidden;border-radius:var(--radius);border:1px solid var(--border);background:var(--panel);margin-bottom:1.25rem}
+.camera-frame .box{position:absolute;inset:15%;border-radius:var(--radius);border:1px solid var(--primary)}
+.camera-frame .tag{position:absolute;left:.75rem;top:.75rem;background:var(--primary);padding:.25rem .5rem;font-size:.62rem;font-weight:700;color:var(--on-primary)}
+.camera-frame .strip{position:absolute;left:2.5rem;right:2.5rem;top:50%;height:4rem;transform:translateY(-50%);border:1px dashed var(--primary);background:rgba(127,180,255,.08)}
+.big-result{text-align:center;border:1px solid rgba(251,191,36,.5)}
+.big-result .num{margin:1rem 0;font-size:4.5rem;font-weight:700;color:var(--warning)}
+.big-result .num span{font-size:1.5rem}
+.pill{display:inline-flex;align-items:center;gap:.5rem;border-radius:var(--radius);background:rgba(251,191,36,.15);padding:.5rem 1rem;font-size:1.25rem;font-weight:700;text-transform:uppercase;color:var(--warning)}
+.bar-chart{display:flex;height:16rem;align-items:flex-end;gap:.5rem;border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:1.25rem .75rem 0}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.bar .fill{width:100%;min-height:4px;opacity:.85}
+.bar .bv{text-align:center;font-size:.85rem;margin-bottom:.5rem}
+.bar .bl{text-align:center;font-size:.62rem;color:var(--muted);margin-top:.5rem}
+.zone-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem}
+@media(min-width:640px){.zone-grid{grid-template-columns:repeat(3,1fr)}}
+.zone{min-height:10rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--raised);padding:1rem;text-align:left}
+.zone:hover{border-color:#7d89b8}
+.zone .zname{display:flex;justify-content:space-between;font-size:1.25rem;font-weight:700}
+.zone .zval{margin-top:1.75rem;font-size:2.5rem;font-weight:700}
+.zone .zunit{font-size:.7rem;color:var(--muted)}
+label.field{display:block;font-size:.72rem;color:var(--muted);margin-bottom:1rem}
+label.field select{margin-top:.25rem;height:3rem;width:100%;border-radius:var(--radius);border:1px solid var(--border);background:var(--raised);padding:0 .75rem;font-size:.85rem}
+label.check{display:flex;align-items:center;gap:.75rem;font-size:.85rem;margin-bottom:.75rem}
+input[type=checkbox]{width:1.25rem;height:1.25rem;accent-color:var(--primary)}
+.avatar{display:grid;place-items:center;width:5rem;height:5rem;flex-shrink:0;border-radius:999px;font-size:1.9rem;font-weight:700}
+.faq button.q{display:flex;width:100%;align-items:center;justify-content:space-between;gap:.75rem;padding:1rem 0;text-align:left;font-size:.85rem;font-weight:600}
+.faq .a{padding-bottom:1rem;font-size:.85rem;color:var(--muted)}
+.faq .item{border-bottom:1px solid var(--border)}
+.faq .item:last-child{border:none}
+.chat{display:flex;min-height:32rem;flex-direction:column;padding:0}
+.chat .log{flex:1;display:flex;flex-direction:column;gap:.75rem;overflow-y:auto;padding:1rem}
+.msg{max-width:85%;border-radius:var(--radius);padding:.5rem .75rem;font-size:.85rem}
+.msg.user{align-self:flex-end;background:linear-gradient(90deg,var(--primary),var(--accent));color:var(--on-primary)}
+.msg.agent{align-self:flex-start;border:1px solid var(--border);background:var(--raised)}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 1rem .5rem}
+.chips button{border-radius:999px;border:1px solid var(--border);padding:.35rem .75rem;font-size:.72rem;color:var(--muted)}
+.chips button:hover{border-color:var(--primary);color:var(--primary)}
+.chat form{display:flex;align-items:center;gap:.5rem;border-top:1px solid var(--border);padding:.75rem}
+.chat input{height:3rem;flex:1;border-radius:var(--radius);border:1px solid var(--border);background:var(--raised);padding:0 .75rem;font-size:.85rem;outline:none}
+.chat input:focus{border-color:var(--primary)}
+.chat .send{display:grid;place-items:center;width:3rem;height:3rem;flex-shrink:0;border-radius:var(--radius)}
+.overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(20,26,46,.8);backdrop-filter:blur(4px);padding:1rem}
+h1.page{font-size:2.5rem;font-weight:700;text-transform:uppercase;line-height:1.05}
+@media(min-width:640px){h1.page{font-size:3rem}}
+.legend-row{display:flex;align-items:center;justify-content:space-between;font-size:.75rem;margin-bottom:.5rem}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ================= H₂S SENTINEL — standalone prototype ================= */
+const $=s=>document.querySelector(s);
+const app=$("#app");
+
+const TONE_DOT=t=>`<span class="dot ${t}"></span>`;
+const statuses=[
+  {label:"Low",count:24,tone:"success",range:"0–29"},
+  {label:"Moderate",count:7,tone:"warning",range:"30–49"},
+  {label:"Elevated",count:3,tone:"elevated",range:"50–59"},
+  {label:"High",count:0,tone:"danger",range:"60+"},
+];
+let state={
+  screen:"dashboard", menu:false, bell:false,
+  notices:[
+    {id:1,title:"Zone C exposure elevated",body:"3 workers above 50 ppm·h this shift.",time:"2 min ago",tone:"elevated",read:false},
+    {id:2,title:"Badge H2S-0412 expiring",body:"Expires in 6 days. Schedule replacement.",time:"26 min ago",tone:"warning",read:false},
+    {id:3,title:"Reader OS-001 calibrated",body:"Batch B-07 curve validated successfully.",time:"1 h ago",tone:"success",read:false},
+    {id:4,title:"Shift report ready",body:"Night shift summary available in Reports.",time:"3 h ago",tone:"success",read:true},
+  ],
+  badgeVerified:false, readingSaved:false, expiredPreview:false, reportDone:"",
+  notify:{alerts:true,badge:true,reports:false},
+  faqOpen:0,
+  chat:[{from:"agent",text:"Hi Ananya — H₂S Sentinel support here. Ask about badges, the optical reader, or exposure results."}],
+  typing:false,
+};
+
+function go(s){state.screen=s;state.menu=false;state.bell=false;render();window.scrollTo({top:0,behavior:"smooth"});}
+window.go=go;
+function toggle(k){state[k]=!state[k];render();}
+window.toggle=toggle;
+
+/* ---------- shared bits ---------- */
+const backHeader=(title,back)=>`
+  <div class="back-head">
+    <button class="icon-btn" aria-label="Back" onclick="go('${back}')">←</button>
+    <div><p class="title font-display">${title}</p><small>H₂S SENTINEL / UNIT A</small></div>
+  </div>`;
+const dataRow=(l,v)=>`<div class="data-row"><span class="l">${l}</span><span class="v">${v}</span></div>`;
+
+/* ---------- screens ---------- */
+function Dashboard(){return `
+  <div style="margin-bottom:1.75rem;display:flex;flex-wrap:wrap;gap:.75rem;justify-content:space-between;align-items:flex-end">
+    <div>
+      <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;color:var(--primary);margin-bottom:.5rem">Facility / Refinery Unit A</p>
+      <h1 class="page">Good morning, safety officer</h1>
+      <p style="margin-top:.5rem;font-size:.85rem;color:var(--muted)">Shift overview · 11 September 2026 · 06:00–18:00</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--success)">${TONE_DOT("success")} Systems operational</div>
+  </div>
+  <div class="grid-3" style="margin-bottom:1.5rem">
+    <div class="panel stat"><span class="ic t-muted">👷</span><strong class="font-display">37</strong><span>Workers</span></div>
+    <div class="panel stat"><span class="ic t-muted">📈</span><strong class="font-display">34</strong><span>Readings</span></div>
+    <div class="panel stat" style="border-color:rgba(248,113,113,.5)"><span class="ic t-danger">⚠</span><strong class="font-display">2</strong><span>Alerts</span></div>
+  </div>
+  <div class="grid-2 wide-right">
+    <div class="panel">
+      <div class="section-title"><h2>Exposure overview</h2><button class="t-primary" style="font-size:.75rem;font-weight:600" onclick="go('map')">VIEW MAP →</button></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+        ${statuses.map(s=>`<div class="status-cell"><span class="lab">${TONE_DOT(s.tone)}${s.label}</span><strong class="font-display t-${s.tone}">${s.count}</strong></div>`).join("")}
+      </div>
+      <div class="callout" style="border-color:var(--elevated);background:rgba(251,146,60,.1)">
+        <strong class="t-elevated">Zone C requires attention.</strong>
+        <p style="margin-top:.25rem;font-size:.75rem;color:var(--muted)">3 elevated cumulative exposure observations this shift.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>Recent activity</h2></div>
+      ${[["W023","Zone C","18:42","warning"],["W017","Zone A","18:31","success"],["W031","Zone C","18:20","elevated"]].map(r=>`
+        <button class="activity-row" onclick="go('result')"><strong style="font-size:.85rem">${r[0]}</strong><span style="font-size:.75rem;color:var(--muted)">${r[1]}</span><span style="font-size:.75rem;color:var(--muted)">${r[2]}</span>${TONE_DOT(r[3])}</button>`).join("")}
+    </div>
+  </div>
+  <div class="grid-2" style="margin-top:1.5rem;gap:.75rem">
+    <button class="btn" onclick="go('scan')">▦ Scan badge</button>
+    <button class="btn secondary" onclick="go('reader')">⏚ Optical reader</button>
+  </div>
+  <div class="grid-4" style="margin-top:2rem">
+    <button class="quick" onclick="go('history')">🕑 Worker history <span style="margin-left:auto;color:var(--muted)">›</span></button>
+    <button class="quick" onclick="go('map')">🗺 Exposure map <span style="margin-left:auto;color:var(--muted)">›</span></button>
+    <button class="quick" onclick="go('badges')">🪪 Badge status <span style="margin-left:auto;color:var(--muted)">›</span></button>
+    <button class="quick" onclick="go('reports')">⬇ Reports <span style="margin-left:auto;color:var(--muted)">›</span></button>
+  </div>
+  <p style="margin-top:2rem;text-align:center;font-size:.62rem;text-transform:uppercase;color:var(--muted)">Measurement chain: H₂S chemical strip → optical reader → validated estimate</p>`;}
+
+function ScanScreen(){return `<div class="wrap">
+  ${backHeader("Scan badge","dashboard")}
+  ${!state.badgeVerified?`
+    <div class="scan-frame industrial-grid"><div class="inner"></div><div style="font-size:11rem;color:var(--primary);line-height:1">▦</div><span class="hint">Position badge inside frame</span></div>
+    <button class="btn" style="max-width:22rem;margin:0 auto" onclick="state.badgeVerified=true;render()">▦ Scan badge</button>
+    <p style="margin-top:1.5rem;text-align:center;font-size:.85rem;color:var(--muted)">Or enter Badge ID manually</p>`
+  :`<div class="panel">
+    <div style="display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);padding-bottom:1.25rem;margin-bottom:1rem">
+      <span style="display:grid;place-items:center;width:3rem;height:3rem;border-radius:999px;background:rgba(52,211,153,.15);color:var(--success);font-size:1.4rem">✓</span>
+      <div><h2 class="font-display" style="font-size:1.5rem;font-weight:700;text-transform:uppercase">Badge verified</h2><p style="font-size:.85rem;color:var(--success)">Valid for use</p></div>
+    </div>
+    ${dataRow("Badge ID","H2S-0237")}${dataRow("Batch","B-07")}${dataRow("Worker","W023")}${dataRow("Expiry","30 Nov 2026")}
+    <button class="btn" style="margin-top:1.5rem" onclick="go('reader')">Start shift ›</button>
+  </div>`}
+</div>`;}
+
+function CameraScreen(){return `<div class="wrap lg">
+  ${backHeader("H₂S strip reading","reader")}
+  <div class="grid-2 wide-right" style="align-items:start">
+    <div class="camera-frame industrial-grid">
+      <div class="box"><span class="tag">STRIP + REFERENCE</span><div class="strip"></div></div>
+    </div>
+    <div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1.25rem">
+        ${["Strip","Reference","Badge"].map(x=>`<div style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--success)">✓ ${x} detected</div>`).join("")}
+      </div>
+      <button class="btn" onclick="go('result')">📷 Capture</button>
+      <p style="margin-top:1rem;text-align:center;font-size:.75rem;color:var(--muted)">Image analysis supports the optical reader; the phone does not detect H₂S.</p>
+      ${stripReference(true)}
+    </div>
+  </div>
+</div>`;}
+
+function ReaderScreen(){return `<div class="wrap lg">
+  ${backHeader("Optical reader","dashboard")}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;border-radius:var(--radius);border:1px solid rgba(52,211,153,.4);background:rgba(52,211,153,.1);padding:1rem;margin-bottom:1.25rem">
+    <div><p class="font-display" style="display:flex;align-items:center;gap:.5rem;font-size:1.25rem;font-weight:700;text-transform:uppercase;color:var(--success)">${TONE_DOT("success")}Reader connected</p>
+    <p style="margin-top:.25rem;font-size:.72rem;color:var(--muted)">OS-001 · Firmware 2.4.1</p></div>
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem">🔋 82%</div>
+  </div>
+  <div class="grid-2 wide-right">
+    <div class="panel industrial-grid" style="position:relative;display:grid;place-items:center;min-height:18rem">
+      <div style="text-align:center">
+        <p class="font-display" style="margin-bottom:2rem;font-size:1.25rem;font-weight:600;text-transform:uppercase">Insert chemical badge</p>
+        <div class="reader-pulse" style="margin:0 auto 1.25rem;height:.5rem;width:4rem;background:var(--primary)"></div>
+        <div style="margin:0 auto;display:flex;height:6rem;max-width:100%;width:13rem;align-items:center;justify-content:center;border-radius:var(--radius);border:2px solid #7d89b8;background:var(--raised);box-shadow:0 20px 40px rgba(0,0,0,.4)">
+          <span class="font-display" style="font-size:1.1rem;font-weight:700">⏚ H₂S SENTINEL</span>
+        </div>
+        <p style="margin-top:1.25rem;font-size:.72rem;color:var(--muted)">Reader bay ready</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>Live diagnostics</h2></div>
+      ${dataRow("Temperature","🌡 31.2 °C")}${dataRow("Humidity","67%")}
+      ${dataRow("Reference",`<span class="t-success">✓ Detected</span>`)}
+      ${dataRow("Sensor strip",`<span class="t-success">✓ Detected</span>`)}
+      <button class="btn" style="margin-top:1.5rem" onclick="go('result')">Start reading 📡</button>
+      <button class="btn secondary" style="margin-top:.5rem" onclick="go('camera')">📷 Phone camera</button>
+    </div>
+  </div>
+</div>`;}
+
+function ResultScreen(){return `<div class="wrap">
+  ${backHeader("Exposure result","reader")}
+  <div class="panel big-result" style="margin-bottom:1.25rem">
+    <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;color:var(--muted)">Estimated cumulative exposure</p>
+    <p class="num font-display">52.4 <span>ppm·h</span></p>
+    <span class="pill font-display">${TONE_DOT("warning")}Moderate</span>
+    <p style="margin-top:1.25rem;font-size:.72rem;color:var(--muted)">Experimentally validated range · Confidence 94%</p>
+  </div>
+  <div class="panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem">
+      <div>${dataRow("Badge","H2S-0237")}${dataRow("Worker","W023")}${dataRow("Location","Zone C")}</div>
+      <div>${dataRow("Shift","Night")}${dataRow("Temperature","31.2 °C")}${dataRow("Humidity","67%")}</div>
+    </div>
+    <div class="callout" style="border-color:var(--warning);background:rgba(251,191,36,.1);font-size:.75rem;color:var(--muted);margin:1.25rem 0">
+      <strong class="t-warning" style="display:block;margin-bottom:.25rem">ESTIMATED VALUE</strong>
+      This result is an estimate within the experimentally validated range, not an exact concentration measurement.
+    </div>
+    <button class="btn" onclick="state.readingSaved=true;render()">${state.readingSaved?"✓ Reading saved":"🛡 Save reading"}</button>
+  </div>
+  ${stripReference(false)}
+</div>`;}
+
+function HistoryScreen(){
+  const values=[24,36,43,58,54,76,52], days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  return `
+  ${backHeader("Worker exposure","dashboard")}
+  <div style="margin-bottom:1.25rem"><h1 class="page font-display">W023</h1><p style="font-size:.85rem;color:var(--muted)">Night shift · Refinery Unit A</p></div>
+  <div class="grid-2 wide-left">
+    <div class="panel">
+      <div class="section-title"><h2>7-day cumulative exposure</h2></div>
+      <div class="bar-chart">${values.map((v,i)=>`<div class="bar"><span class="bv font-display">${v}</span><div class="fill ${v>60?"":""}" style="height:${v}%;background:${v>60?"var(--elevated)":v>40?"var(--warning)":"var(--success)"}"></div><span class="bl">${days[i]}</span></div>`).join("")}</div>
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>Summary</h2></div>
+      ${dataRow("Average","49 ppm·h")}${dataRow("Highest",`<span class="t-elevated">76 ppm·h</span>`)}${dataRow("Trend",`<span class="t-elevated">↑ Increasing</span>`)}${dataRow("Readings","7")}
+      <button class="btn secondary" style="margin-top:1.25rem" onclick="go('map')">🗺 View on map</button>
+    </div>
+  </div>`;}
+
+function MapScreen(){
+  const zones=[["A","success",24],["B","warning",41],["C","danger",62],["D","success",18],["E","elevated",52],["F","success",21]];
+  return `
+  ${backHeader("Cumulative exposure map","dashboard")}
+  <div style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem">
+    <div><h1 class="page font-display" style="font-size:1.9rem">Facility · Unit A</h1><p style="font-size:.85rem;color:var(--muted)">Shift aggregate, not real-time gas concentration</p></div>
+    <span style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--muted)">📡 Updated 18:45</span>
+  </div>
+  <div class="grid-2 wide-left">
+    <div class="panel industrial-grid"><div class="zone-grid">
+      ${zones.map(z=>`<button class="zone" style="${z[0]==="C"?"border-color:var(--danger)":""}">
+        <div class="zname font-display">ZONE ${z[0]} ${TONE_DOT(z[1])}</div>
+        <p class="zval font-display t-${z[1]}">${z[2]}</p><p class="zunit">ppm·h observed</p></button>`).join("")}
+    </div></div>
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+      <div class="panel" style="border-color:rgba(248,113,113,.5)">
+        <p class="font-display" style="display:flex;align-items:center;gap:.5rem;font-size:1.1rem;font-weight:700;text-transform:uppercase;color:var(--danger);margin-bottom:.75rem">⚠ Zone C alert</p>
+        <p style="font-size:.85rem;color:var(--muted)">Repeated elevated observations detected across the night shift.</p>
+        ${dataRow("Trend",`<span class="t-danger">↑ Increasing</span>`)}${dataRow("Workers","12")}${dataRow("Latest","62 ppm·h")}
+        <button class="btn" style="margin-top:1rem" onclick="go('history')">View history</button>
+      </div>
+      <div class="panel">
+        <div class="section-title"><h2>Legend</h2></div>
+        ${statuses.map(s=>`<div class="legend-row"><span style="display:flex;align-items:center;gap:.5rem">${TONE_DOT(s.tone)}${s.label}</span><span class="t-muted">${s.range} ppm·h</span></div>`).join("")}
+      </div>
+    </div>
+  </div>`;}
+
+function BadgeScreen(){return `<div class="wrap">
+  ${backHeader("Badge status","dashboard")}
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+      <span style="display:grid;place-items:center;width:3.5rem;height:3.5rem;border-radius:var(--radius);background:rgba(52,211,153,.15);color:var(--success);font-size:1.75rem">🪪</span>
+      <div><h1 class="font-display" style="font-size:1.9rem;font-weight:700">H2S-0237</h1><p style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--success)">${TONE_DOT("success")}Valid</p></div>
+    </div>
+    ${dataRow("Manufactured","01 Sep 2026")}${dataRow("Expiry","30 Nov 2026")}${dataRow("Batch","B-07")}
+    ${dataRow("Physical expiry indicator",`<span class="t-success">✓ Confirmed</span>`)}
+    ${dataRow("Digital record",`<span class="t-success">✓ Confirmed</span>`)}
+    ${dataRow("Exposure status","Not used")}
+    <button style="margin-top:1.5rem;font-size:.72rem;color:var(--muted);text-decoration:underline" onclick="state.expiredPreview=true;render()">Preview expired badge warning</button>
+  </div>
+  ${state.expiredPreview?`<div class="overlay"><div class="panel" style="width:100%;max-width:24rem;border-color:rgba(248,113,113,.6)">
+    <div class="t-danger" style="font-size:2rem;margin-bottom:1rem">⚠</div>
+    <h2 class="font-display" style="font-size:1.5rem;font-weight:700;text-transform:uppercase;color:var(--danger)">Badge expired</h2>
+    <p style="margin-top:1rem;font-size:.85rem">Badge H2S-0237 · Expiry 30 Aug 2026</p>
+    <p style="margin:1.25rem 0;font-size:.85rem;color:var(--muted)">Do not use this badge for exposure measurement.</p>
+    <button class="btn" onclick="state.expiredPreview=false;render()">Close</button></div></div>`:""}
+</div>`;}
+
+function ReportsScreen(){return `<div class="wrap">
+  ${backHeader("Reports","dashboard")}
+  <div class="panel">
+    <div class="section-title"><h2>Generate report</h2></div>
+    ${[["Worker","W023"],["Zone","All zones"],["Shift","All shifts"],["Date","01–07 Sep 2026"]].map(f=>`<label class="field">${f[0]}<select><option>${f[1]}</option></select></label>`).join("")}
+    <p style="margin-bottom:.75rem;font-size:.72rem;color:var(--muted)">Include</p>
+    ${["Exposure readings","Temperature / humidity","Badge validity","Reading quality","Location history"].map(x=>`<label class="check"><input type="checkbox" checked/>${x}</label>`).join("")}
+    <div class="grid-2" style="margin-top:1.5rem;gap:.5rem">
+      <button class="btn" onclick="state.reportDone='PDF report prepared';render()">⬇ Generate PDF</button>
+      <button class="btn secondary" onclick="state.reportDone='CSV export prepared';render()">Export CSV</button>
+    </div>
+    ${state.reportDone?`<p style="margin-top:1rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--success)">✓ ${state.reportDone}</p>`:""}
+  </div>
+</div>`;}
+
+function CalibrationScreen(){
+  const points=[[0,.12],[10,.19],[20,.27],[40,.41],[80,.63]];
+  return `<div class="wrap lg">
+  ${backHeader("Calibration mode","dashboard")}
+  <div class="callout" style="border-color:var(--primary);background:rgba(127,180,255,.1);margin:0 0 1.25rem">
+    <strong class="t-primary">ADMIN / RESEARCH MODE</strong>
+    <p style="margin-top:.25rem;font-size:.72rem;color:var(--muted)">Experimental calibration data · Batch B-07</p>
+  </div>
+  <div class="panel">
+    <div class="section-title"><h2>Calibration dataset</h2></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);padding-bottom:.5rem;font-size:.72rem;font-weight:600;text-transform:uppercase;color:var(--muted)"><span>Known exposure</span><span>Optical response</span></div>
+    ${points.map(p=>`<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);padding:.75rem 0;font-size:.85rem"><span>${p[0]} ppm·h</span><span>${p[1].toFixed(2)}</span></div>`).join("")}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1.25rem">${dataRow("Temperature","31.2 °C")}${dataRow("Humidity","67%")}</div>
+    <div class="grid-2" style="margin-top:1.5rem;gap:.5rem">
+      <button class="btn secondary">📊 View curve</button>
+      <button class="btn">🧪 Validate model</button>
+    </div>
+  </div>
+</div>`;}
+
+function ProfileScreen(){return `<div class="wrap lg">
+  ${backHeader("My profile","dashboard")}
+  <div class="panel ombre-panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-bottom:1.25rem">
+    <span class="avatar ombre-bar font-display">AR</span>
+    <div style="flex:1;min-width:12rem">
+      <h1 class="font-display" style="font-size:1.9rem;font-weight:700;text-transform:uppercase">Ananya Rao</h1>
+      <p style="font-size:.85rem;color:var(--muted)">Safety Officer · Employee ID SO-1142</p>
+      <p style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--success)">${TONE_DOT("success")} On shift · Refinery Unit A</p>
+    </div>
+    <div style="text-align:right"><p class="font-display" style="font-size:2.5rem;font-weight:700;color:var(--primary)">37</p><p style="font-size:.62rem;text-transform:uppercase;color:var(--muted)">Workers supervised</p></div>
+  </div>
+  <div class="grid-2">
+    <div class="panel">
+      <div class="section-title"><h2>Details</h2></div>
+      ${dataRow("Role","Safety Officer (Level 2)")}${dataRow("Facility","Refinery Unit A")}${dataRow("Shift","Night · 18:00–06:00")}
+      ${dataRow("Email","✉ ananya.rao@sentinel.io")}${dataRow("Phone","☏ +91 98200 41120")}
+      ${dataRow("Certification",`<span class="t-success">Valid to 12 Mar 2027</span>`)}
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>Notification preferences</h2></div>
+      ${[["alerts","Exposure alerts"],["badge","Badge expiry reminders"],["reports","Daily report summary"]].map(k=>`
+        <label style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:1rem 0;font-size:.85rem">${k[1]}
+        <input type="checkbox" ${state.notify[k[0]]?"checked":""} onchange="state.notify['${k[0]}']=this.checked"/></label>`).join("")}
+      <button class="btn secondary" style="margin-top:1.25rem" onclick="go('help')">🛟 Help & support</button>
+      <button class="btn secondary" style="margin-top:.5rem" onclick="go('calibration')">⚙ Calibration mode</button>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:1.25rem">
+    <div class="section-title"><h2>Recent activity</h2></div>
+    ${dataRow("Saved reading W023","18:42")}${dataRow("Verified badge H2S-0237","18:30")}${dataRow("Generated night shift report","18:05")}
+  </div>
+</div>`;}
+
+const faqs=[
+  ["How is exposure measured?","The H₂S chemical strip on the badge changes colour with exposure. The optical reader scans that strip and the software converts the optical response into a cumulative ppm·h estimate. The phone never senses gas itself."],
+  ["Reader not connecting","Check the reader is powered on, hold it within 1 m of the phone, and confirm firmware 2.4.1. If it still fails, restart the reader from its side button."],
+  ["Reading quality is poor","Clean the strip window, avoid direct sunlight, and make sure both the strip and the reference patch are inside the frame before capturing."],
+  ["When must a badge be replaced?","Replace on the printed expiry date, after a high-exposure event, or when the physical expiry indicator is discoloured."],
+];
+function chatReply(q){
+  const t=q.toLowerCase();
+  if(t.includes("badge")||t.includes("expir"))return"Badges stay valid until their printed expiry date. Open Badge status to check the digital record and the physical expiry indicator for badge H2S-0237.";
+  if(t.includes("reader")||t.includes("connect"))return"Reader OS-001 is connected on firmware 2.4.1 at 82% battery. If the bay light stays off, reseat the badge and restart the reader.";
+  if(t.includes("result")||t.includes("ppm")||t.includes("exposure"))return"Results are estimates within the experimentally validated range: chemical strip → optical reader → software estimate. The latest W023 reading is 52.4 ppm·h (moderate).";
+  if(t.includes("zone")||t.includes("map"))return"Zone C is showing repeated elevated readings this shift. Open the exposure map for the zone breakdown.";
+  if(t.includes("report")||t.includes("export"))return"Go to Reports to build a PDF or CSV for any worker, zone, shift, or date range.";
+  return"Thanks — a safety systems engineer will follow up shortly. Meanwhile the FAQ covers badges, reader connection, reading quality and replacements.";
+}
+function sendChat(text){
+  const t=(text||"").trim(); if(!t)return;
+  state.chat.push({from:"user",text:t}); state.typing=true; render();
+  setTimeout(()=>{state.typing=false;state.chat.push({from:"agent",text:chatReply(t)});render();},800);
+}
+window.sendChat=sendChat;
+
+function HelpScreen(){return `<div class="wrap xl">
+  ${backHeader("Help & support","dashboard")}
+  <div class="grid-2" style="align-items:start">
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+      <div class="panel ombre-panel">
+        <div class="section-title"><h2>Measurement chain</h2></div>
+        <p style="font-size:.85rem;color:var(--muted)">H₂S chemical strip → optical reader → validated software estimate. The phone assists imaging only; it does not detect gas.</p>
+      </div>
+      <div class="panel faq">
+        <div class="section-title"><h2>Frequent questions</h2></div>
+        ${faqs.map((f,i)=>`<div class="item">
+          <button class="q" onclick="state.faqOpen=state.faqOpen===${i}?null:${i};render()">${f[0]}<span style="color:var(--muted);display:inline-block;transform:rotate(${state.faqOpen===i?90:0}deg)">›</span></button>
+          ${state.faqOpen===i?`<p class="a">${f[1]}</p>`:""}
+        </div>`).join("")}
+      </div>
+      <div class="panel">
+        <div class="section-title"><h2>Contact</h2></div>
+        ${dataRow("Control room","+91 98200 41100")}${dataRow("Support email","support@sentinel.io")}${dataRow("Emergency",`<span class="t-danger">Dial 1099 · Unit A</span>`)}
+      </div>
+      ${stripReference(false)}
+    </div>
+    <div class="panel chat">
+      <div class="ombre-panel" style="display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);padding:1rem">
+        <span class="ombre-bar" style="display:grid;place-items:center;width:2.5rem;height:2.5rem;border-radius:999px">💬</span>
+        <div><strong class="font-display" style="display:block;font-size:1.1rem;text-transform:uppercase;line-height:1">Support chat</strong>
+        <span style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--success)">${TONE_DOT("success")}Online · replies in ~1 min</span></div>
+      </div>
+      <div class="log" id="chatLog">
+        ${state.chat.map(m=>`<p class="msg ${m.from}">${m.text}</p>`).join("")}
+        ${state.typing?`<p style="font-size:.72rem;text-transform:uppercase;color:var(--muted)">Support is typing…</p>`:""}
+      </div>
+      <div class="chips">${["Reader not connecting","Badge expiry","Explain my result"].map(s=>`<button onclick="sendChat('${s}')">${s}</button>`).join("")}</div>
+      <form onsubmit="event.preventDefault();sendChat(this.q.value);this.q.value=''">
+        <input name="q" placeholder="Type your question…" aria-label="Message support"/>
+        <button type="submit" class="send ombre-bar" aria-label="Send message">➤</button>
+      </form>
+    </div>
+  </div>
+</div>`;}
+
+
+/* ---------- H2S strip colour reference ---------- */
+const STRIP_REF=[
+  {zone:"Zone A · Safe",range:"0 – 10 ppm·h",band:"Safe",col:"#f3ecd8",tone:"success",note:"Pale cream — strip essentially unreacted."},
+  {zone:"Zone B · Caution",range:"10 – 35 ppm·h",band:"Caution",col:"#e0c46a",tone:"warning",note:"Light amber — early sulfide reaction."},
+  {zone:"Zone C · Elevated",range:"35 – 70 ppm·h",band:"Elevated",col:"#b5702f",tone:"elevated",note:"Deep amber / brown — significant uptake."},
+  {zone:"Zone D · Danger",range:"70 ppm·h and above",band:"Danger",col:"#4a2a1c",tone:"danger",note:"Dark brown to black — saturated strip, evacuate."}
+];
+function stripReference(compact){return `
+<div class="panel" style="margin-top:1.25rem">
+  <div class="section-title"><h2>Strip colour reference</h2><span style="font-size:.7rem;color:var(--muted)">Zone colour key</span></div>
+  <div style="display:flex;height:2.25rem;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:1rem">
+    ${STRIP_REF.map(r=>`<div style="flex:1;background:${r.col}"></div>`).join("")}
+  </div>
+  ${STRIP_REF.map(r=>`
+    <div style="display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);padding:.7rem 0">
+      <span style="width:2.4rem;height:2.4rem;border-radius:6px;border:1px solid var(--border);background:${r.col};flex:none"></span>
+      <div style="flex:1;min-width:0">
+        <p class="font-display" style="font-size:1rem;text-transform:uppercase;line-height:1.1">${r.zone}</p>
+        <p style="font-size:.72rem;color:var(--muted)">${r.range}${compact?"":" · "+r.note}</p>
+      </div>
+      <span class="pill font-display" style="font-size:.7rem">${TONE_DOT(r.tone)}${r.band}</span>
+    </div>`).join("")}
+  <p style="margin-top:1rem;font-size:.72rem;color:var(--muted)">Colours shown are indicative. The optical reader compares the strip against the printed reference patch under controlled light; do not judge exposure by eye.</p>
+</div>`;}
+
+/* ---------- shell ---------- */
+const screens={dashboard:Dashboard,scan:ScanScreen,camera:CameraScreen,reader:ReaderScreen,result:ResultScreen,history:HistoryScreen,map:MapScreen,badges:BadgeScreen,reports:ReportsScreen,calibration:CalibrationScreen,profile:ProfileScreen,help:HelpScreen};
+
+function render(){
+  const unread=state.notices.filter(n=>!n.read).length;
+  app.innerHTML=`
+  <header>
+    <div class="header-in">
+      <button class="brand" onclick="go('dashboard')">
+        <span class="logo ombre-bar">〰</span>
+        <span><strong class="ombre-text">H₂S SENTINEL</strong><small>Cumulative exposure</small></span>
+      </button>
+      <nav class="nav">
+        ${[["Monitor","dashboard"],["History","history"],["Exposure map","map"],["Reports","reports"],["Help","help"]].map(n=>`<button class="${state.screen===n[1]?"active":""}" onclick="go('${n[1]}')">${n[0]}</button>`).join("")}
+      </nav>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <div style="position:relative">
+          <button class="icon-btn" style="position:relative;width:2.5rem;height:2.5rem" aria-label="Notifications, ${unread} unread" onclick="toggle('bell')">🔔${unread>0?`<span class="badge-count">${unread}</span>`:""}</button>
+          ${state.bell?`<div class="dropdown">
+            <div class="ombre-panel" style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:.75rem 1rem">
+              <span class="font-display" style="font-size:.85rem;font-weight:700;text-transform:uppercase">Notifications</span>
+              <button class="t-primary" style="font-size:.72rem;font-weight:600" onclick="state.notices=state.notices.map(n=>({...n,read:true}));render()">Mark all read</button>
+            </div>
+            <div style="max-height:20rem;overflow-y:auto">
+              ${state.notices.length===0?`<p style="padding:1.5rem;text-align:center;font-size:.85rem;color:var(--muted)">You're all caught up.</p>`:
+              state.notices.map(n=>`<div class="notice ${n.read?"read":""}">
+                <span style="margin-top:.4rem">${TONE_DOT(n.tone)}</span>
+                <button class="body" onclick="state.notices=state.notices.map(x=>x.id===${n.id}?{...x,read:true}:x);render()"><strong>${n.title}</strong><span>${n.body}</span><span class="time">${n.time}</span></button>
+                <button aria-label="Dismiss" style="align-self:flex-start;color:var(--muted)" onclick="state.notices=state.notices.filter(x=>x.id!==${n.id});render()">✕</button>
+              </div>`).join("")}
+            </div>
+            <button class="t-primary" style="display:block;width:100%;border-top:1px solid var(--border);padding:.75rem 1rem;font-size:.72rem;font-weight:600" onclick="go('help')">Need help? Open support chat →</button>
+          </div>`:""}
+        </div>
+        <button class="icon-btn" style="width:2.5rem;height:2.5rem;${state.screen==="profile"?"border-color:var(--primary);color:var(--primary)":"color:var(--muted)"}" aria-label="Profile" onclick="go('profile')">👤</button>
+        <button class="icon-btn menu-btn" style="width:2.5rem;height:2.5rem" aria-label="Open menu" onclick="toggle('menu')">${state.menu?"✕":"☰"}</button>
+      </div>
+    </div>
+    ${state.menu?`<div class="mobile-menu">
+      ${[["Dashboard","dashboard"],["Scan badge","scan"],["Optical reader","reader"],["Worker history","history"],["Exposure map","map"],["Badge status","badges"],["Reports","reports"],["Calibration mode","calibration"],["My profile","profile"],["Help & support","help"]].map(n=>`<button onclick="go('${n[1]}')">${n[0]}<span>›</span></button>`).join("")}
+    </div>`:""}
+  </header>
+  <main class="container">${screens[state.screen]()}</main>
+  <nav class="bottom-nav"><div class="in">
+    ${[["⌂","Home","dashboard"],["▦","Scan","scan"],["⏚","Reader","reader"],["🗺","Map","map"]].map(n=>`<button class="${state.screen===n[2]?"active":""}" onclick="go('${n[2]}')"><span style="font-size:1.1rem">${n[0]}</span>${n[1]}</button>`).join("")}
+  </div></nav>`;
+  const log=$("#chatLog"); if(log)log.scrollTop=log.scrollHeight;
+}
+render();
+</script>
+</body>
+</html>
